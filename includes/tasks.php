@@ -9,32 +9,32 @@ class TaskManager {
 
     public function createTask($userId, $data) {
         try {
+            // Convert checkbox 'on' value to boolean
+            $isRecurring = isset($data['is_recurring']) ? 1 : 0;
+
             $stmt = $this->conn->prepare("
                 INSERT INTO tasks 
-                (user_id, title, description, mood_level, estimated_time, deadline, priority, category_id, is_recurring)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (user_id, title, description, mood_level, estimated_time, deadline, is_recurring)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
                 $userId,
                 $data['title'],
-                $data['description'],
+                $data['description'] ?? null,
                 $data['mood_level'],
                 $data['estimated_time'],
-                $data['deadline'],
-                $data['priority'] ?? 1,
-                $data['category_id'] ?? null,
-                $data['is_recurring'] ?? false
+                $data['deadline'] ?? null,
+                $isRecurring
             ]);
 
             $taskId = $this->conn->lastInsertId();
 
-            // Handle recurring task settings if applicable
-            if ($data['is_recurring'] && isset($data['recurring'])) {
+            if ($isRecurring && isset($data['recurring'])) {
                 $this->createRecurringTask($taskId, $data['recurring']);
             }
 
-            return ["success" => true, "task_id" => $taskId];
+            return ["success" => true, "message" => "Task created successfully"];
         } catch (Exception $e) {
             return ["success" => false, "message" => "Failed to create task: " . $e->getMessage()];
         }
@@ -42,14 +42,16 @@ class TaskManager {
 
     public function selectTask($userId, $currentMood, $availableTime) {
         try {
-            // Start with strict mood level matching
+            // Get appropriate mood levels based on current mood
             $moodLevels = $this->getMoodLevels($currentMood);
             
-            $stmt = $this->conn->prepare("
+            $placeholders = str_repeat('?,', count($moodLevels) - 1) . '?';
+            
+            $sql = "
                 SELECT * FROM tasks 
-                WHERE user_id = ?
+                WHERE user_id = ? 
                 AND status = 'pending'
-                AND mood_level IN (" . implode(',', $moodLevels) . ")
+                AND mood_level IN ($placeholders)
                 AND estimated_time <= ?
                 ORDER BY 
                     CASE 
@@ -59,9 +61,13 @@ class TaskManager {
                     END ASC,
                     priority DESC
                 LIMIT 1
-            ");
+            ";
 
-            $stmt->execute([$userId, $availableTime]);
+            $params = array_merge([$userId], $moodLevels, [$availableTime]);
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute($params);
+            
             $task = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$task) {
@@ -100,6 +106,26 @@ class TaskManager {
             $recurringData['interval_type'],
             $recurringData['interval_value']
         ]);
+    }
+
+    public function getUserTasks($userId) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT * FROM tasks 
+                WHERE user_id = ? AND status = 'pending'
+                ORDER BY 
+                    CASE 
+                        WHEN deadline IS NOT NULL 
+                        THEN DATEDIFF(deadline, CURRENT_DATE)
+                        ELSE 999999
+                    END ASC
+            ");
+            
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return [];
+        }
     }
 }
 ?>

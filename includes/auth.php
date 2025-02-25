@@ -8,16 +8,16 @@ class Auth {
     }
 
     public function register($firstName, $lastName, $email, $password) {
-        // Validate input
-        if (empty($firstName) || empty($lastName) || empty($email) || empty($password)) {
-            return ["success" => false, "message" => "All fields are required"];
-        }
-
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return ["success" => false, "message" => "Invalid email format"];
-        }
-
         try {
+            // Validate input
+            if (empty($firstName) || empty($lastName) || empty($email) || empty($password)) {
+                return ["success" => false, "message" => "All fields are required"];
+            }
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return ["success" => false, "message" => "Invalid email format"];
+            }
+
             // Check if email exists
             $stmt = $this->conn->prepare("SELECT id FROM users WHERE email = ?");
             $stmt->execute([$email]);
@@ -33,8 +33,8 @@ class Auth {
 
             // Insert user
             $stmt = $this->conn->prepare("
-                INSERT INTO users (first_name, last_name, email, password, verification_token)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO users (first_name, last_name, email, password, verification_token, email_verified)
+                VALUES (?, ?, ?, ?, ?, TRUE)
             ");
 
             $stmt->execute([
@@ -45,10 +45,7 @@ class Auth {
                 $verificationToken
             ]);
 
-            // Send verification email
-            $this->sendVerificationEmail($email, $verificationToken);
-
-            return ["success" => true, "message" => "Registration successful. Please check your email to verify your account."];
+            return ["success" => true, "message" => "Registration successful. Please login."];
         } catch (Exception $e) {
             return ["success" => false, "message" => "Registration failed: " . $e->getMessage()];
         }
@@ -57,7 +54,7 @@ class Auth {
     public function login($email, $password) {
         try {
             $stmt = $this->conn->prepare("
-                SELECT id, password, email_verified 
+                SELECT id, password, email_verified, first_name 
                 FROM users 
                 WHERE email = ?
             ");
@@ -76,6 +73,7 @@ class Auth {
             if (password_verify($password, $user['password'])) {
                 session_start();
                 $_SESSION['user_id'] = $user['id'];
+                $_SESSION['first_name'] = $user['first_name'];
                 return ["success" => true, "message" => "Login successful"];
             }
 
@@ -85,14 +83,15 @@ class Auth {
         }
     }
 
-    private function sendVerificationEmail($email, $token) {
-        $to = $email;
-        $subject = "Verify your email address";
-        $message = "Please click the following link to verify your email: \n";
-        $message .= "http://yourdomain.com/verify.php?token=" . $token;
-        $headers = "From: noreply@yourdomain.com";
+    public function isLoggedIn() {
+        return isset($_SESSION['user_id']);
+    }
 
-        mail($to, $subject, $message, $headers);
+    public function logout() {
+        session_start();
+        session_destroy();
+        header("Location: login.php");
+        exit();
     }
 }
 ?>

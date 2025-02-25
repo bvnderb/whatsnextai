@@ -1,4 +1,3 @@
-// Form validation and UI interactions
 document.addEventListener('DOMContentLoaded', function() {
     // Task form visibility toggle
     window.showTaskForm = function() {
@@ -94,26 +93,41 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     };
 
-    // Mood selector enhancement
-    const moodButtons = document.querySelectorAll('.mood-buttons input[type="radio"]');
-    moodButtons.forEach(button => {
-        button.addEventListener('change', function() {
-            // Remove active class from all labels
-            moodButtons.forEach(btn => {
-                btn.nextElementSibling.classList.remove('active');
-            });
-            // Add active class to selected label
-            this.nextElementSibling.classList.add('active');
-        });
-    });
-
     // Time input validation
     const timeInput = document.querySelector('#available_time');
     if (timeInput) {
-        timeInput.addEventListener('input', function() {
-            let value = parseInt(this.value);
-            if (value < 5) this.value = 5;
-            if (value > 480) this.value = 480;
+        timeInput.addEventListener('input', function(e) {
+            // Remove any non-numeric characters
+            let value = this.value.replace(/[^0-9]/g, '');
+            
+            // Convert to number
+            value = parseInt(value) || 0;
+            
+            // Clamp between 5 and 480
+            if (value < 5) value = 5;
+            if (value > 480) value = 480;
+            
+            // Update input value
+            this.value = value;
+        });
+
+        // Prevent non-numeric keys
+        timeInput.addEventListener('keypress', function(e) {
+            if (!/[0-9]/.test(e.key)) {
+                e.preventDefault();
+            }
+        });
+
+        // Handle paste events
+        timeInput.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            if (/^\d+$/.test(pastedText)) {
+                let value = parseInt(pastedText);
+                if (value < 5) value = 5;
+                if (value > 480) value = 480;
+                this.value = value;
+            }
         });
     }
 
@@ -140,8 +154,3 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
-
-// Add styles to the page
-const styleSheet = document.createElement("style");
-styleSheet.textContent = styles;
-document.head.appendChild(styleSheet);

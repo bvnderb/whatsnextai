@@ -178,23 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="form-group">
                     <label for="register-password">Password</label>
-                    <input type="password" id="register-password" name="password" 
-                           required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
-                           title="Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters">
-                    <div class="password-requirements">
-                        Password must contain at least:
-                        <ul>
-                            <li>8 characters</li>
-                            <li>One uppercase letter</li>
-                            <li>One lowercase letter</li>
-                            <li>One number</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="confirm-password">Confirm Password</label>
-                    <input type="password" id="confirm-password" name="confirm_password" required>
+                    <input type="password" id="register-password" name="password" required>
                 </div>
 
                 <button type="submit">Register</button>
